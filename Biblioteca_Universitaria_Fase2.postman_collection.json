@@ -1,0 +1,716 @@
+{
+	"info": {
+		"_postman_id": "biblioteca-universitaria-fase2",
+		"name": "Biblioteca Universitária - Fase 2",
+		"description": "API completa do Sistema de Biblioteca Universitária com Triggers, Functions e Procedures.\n\n**Funcionalidades da Fase 2:**\n- 2 Triggers (validação + auditoria)\n- 2 Functions (cálculo de multas)\n- 1 Procedure (registro de devolução)\n- CRUD completo (Usuários e Empréstimos)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Raiz - Documentação",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						""
+					]
+				},
+				"description": "Retorna documentação de todos os endpoints disponíveis na API."
+			},
+			"response": []
+		},
+		{
+			"name": "Usuários",
+			"item": [
+				{
+					"name": "Listar Todos os Usuários",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/usuarios",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"usuarios"
+							]
+						},
+						"description": "Lista todos os usuários cadastrados no sistema."
+					},
+					"response": []
+				},
+				{
+					"name": "Buscar Usuário por ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/usuarios/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"1"
+							]
+						},
+						"description": "Busca um usuário específico pelo ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Criar Novo Usuário",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nome\": \"Carlos Silva\",\n  \"email\": \"carlos.silva@universidade.edu.br\",\n  \"cpf\": \"555.666.777-88\",\n  \"tipo\": \"aluno\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/usuarios",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"usuarios"
+							]
+						},
+						"description": "Cria um novo usuário no sistema.\n\n**Campos obrigatórios:**\n- nome\n- email (único)\n- cpf (único)\n- tipo (aluno, professor, funcionario)"
+					},
+					"response": []
+				},
+				{
+					"name": "Atualizar Usuário",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nome\": \"Carlos Silva Atualizado\",\n  \"ativo\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/usuarios/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"1"
+							]
+						},
+						"description": "Atualiza dados de um usuário existente. Todos os campos são opcionais."
+					},
+					"response": []
+				},
+				{
+					"name": "Deletar Usuário",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/usuarios/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"1"
+							]
+						},
+						"description": "Deleta um usuário do sistema. Não é possível deletar usuários com empréstimos ou multas vinculadas."
+					},
+					"response": []
+				},
+				{
+					"name": "[FUNCTION] Total de Multas Abertas",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/usuarios/1/multas/total",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"1",
+								"multas",
+								"total"
+							]
+						},
+						"description": "**ENDPOINT DA FASE 2**\n\nRetorna o total de multas abertas de um usuário.\n\n**Function SQL:** `fn_total_multas_abertas_usuario()`\n\nEste endpoint chama diretamente a função do banco de dados."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Empréstimos",
+			"item": [
+				{
+					"name": "Listar Todos os Empréstimos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos"
+							]
+						},
+						"description": "Lista todos os empréstimos com informações do usuário, exemplar e livro."
+					},
+					"response": []
+				},
+				{
+					"name": "Buscar Empréstimo por ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos",
+								"1"
+							]
+						},
+						"description": "Busca um empréstimo específico com todos os detalhes relacionados."
+					},
+					"response": []
+				},
+				{
+					"name": "[TRIGGER] Criar Empréstimo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"usuario_id\": 1,\n  \"exemplar_id\": 1,\n  \"dias_emprestimo\": 14\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos"
+							]
+						},
+						"description": "**ENDPOINT DA FASE 2**\n\nCria um novo empréstimo.\n\n**DISPARA TRIGGERS:**\n1. `trg_emprestimo_validacao` - Valida antes de inserir:\n   - Usuário deve estar ativo\n   - Exemplar deve estar disponível\n   - Usuário não pode ter multas abertas\n\n2. `trg_emprestimo_auditoria` - Após inserir:\n   - Registra log de auditoria\n   - Atualiza estado do exemplar para 'emprestado'\n\n**Campos obrigatórios:**\n- usuario_id\n- exemplar_id\n- dias_emprestimo (padrão: 14)"
+					},
+					"response": []
+				},
+				{
+					"name": "[TRIGGER] Criar Empréstimo (Usuário Inativo - ERRO)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"usuario_id\": 3,\n  \"exemplar_id\": 1,\n  \"dias_emprestimo\": 14\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos"
+							]
+						},
+						"description": "**TESTE DE TRIGGER DE VALIDAÇÃO**\n\nTenta criar empréstimo com usuário INATIVO (ID 3).\n\n**Resultado esperado:** Erro bloqueado pela trigger.\n\nMensagem: \"Usuário 3 está inativo e não pode realizar empréstimo.\""
+					},
+					"response": []
+				},
+				{
+					"name": "Atualizar Empréstimo",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"data_devolucao\": \"2025-12-03\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos",
+								"1"
+							]
+						},
+						"description": "Atualiza dados de um empréstimo. Ao atualizar a data_devolucao, dispara a trigger de auditoria."
+					},
+					"response": []
+				},
+				{
+					"name": "Deletar Empréstimo",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos",
+								"1"
+							]
+						},
+						"description": "Deleta um empréstimo do sistema."
+					},
+					"response": []
+				},
+				{
+					"name": "[FUNCTION] Calcular Multa",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos/1/multa",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos",
+								"1",
+								"multa"
+							]
+						},
+						"description": "**ENDPOINT DA FASE 2**\n\nCalcula o valor da multa por atraso de um empréstimo.\n\n**Function SQL:** `fn_calcular_multa_atraso()`\n\n**Regra:** R$ 2,50 por dia de atraso"
+					},
+					"response": []
+				},
+				{
+					"name": "[PROCEDURE] Registrar Devolução",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"usuario_responsavel\": \"api_postman\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos/1/devolucao",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos",
+								"1",
+								"devolucao"
+							]
+						},
+						"description": "**ENDPOINT DA FASE 2**\n\nRegistra a devolução de um empréstimo.\n\n**Procedure SQL:** `prc_registrar_devolucao()`\n\n**O que a procedure faz:**\n1. Atualiza data_devolucao\n2. Calcula multa automaticamente (usando fn_calcular_multa_atraso)\n3. Registra multa se houver atraso\n4. Dispara trigger de auditoria\n5. Atualiza estado do exemplar para 'disponivel'\n\n**Body (opcional):**\n- usuario_responsavel (padrão: 'api_backend')"
+					},
+					"response": []
+				},
+				{
+					"name": "Ver Auditoria (Logs de Triggers)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos/auditoria/logs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos",
+								"auditoria",
+								"logs"
+							]
+						},
+						"description": "**ENDPOINT DA FASE 2**\n\nLista os últimos 50 registros de auditoria.\n\nEstes logs são gerados automaticamente pela trigger `trg_emprestimo_auditoria` sempre que há:\n- INSERT em emprestimo (ação: INSERIR)\n- UPDATE em emprestimo (ação: ATUALIZAR ou DEVOLVER)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Testes da Fase 2",
+			"item": [
+				{
+					"name": "Teste 1: Criar Usuário Ativo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code é 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Usuário criado com sucesso\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.sucesso).to.eql(true);",
+									"    pm.expect(jsonData.dados.ativo).to.eql(true);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nome\": \"Teste Usuário Ativo\",\n  \"email\": \"teste.ativo@universidade.edu.br\",\n  \"cpf\": \"999.888.777-66\",\n  \"tipo\": \"aluno\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/usuarios",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"usuarios"
+							]
+						},
+						"description": "Cria um usuário ativo para testes."
+					},
+					"response": []
+				},
+				{
+					"name": "Teste 2: Criar Empréstimo (Trigger Valida)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code é 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Empréstimo criado e trigger executada\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.sucesso).to.eql(true);",
+									"    pm.expect(jsonData.mensagem).to.include(\"Trigger\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"usuario_id\": 1,\n  \"exemplar_id\": 2,\n  \"dias_emprestimo\": 14\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos"
+							]
+						},
+						"description": "Cria empréstimo válido. Trigger de validação deve permitir."
+					},
+					"response": []
+				},
+				{
+					"name": "Teste 3: Trigger Bloqueia Usuário Inativo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code é 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Trigger bloqueou empréstimo\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.sucesso).to.eql(false);",
+									"    pm.expect(jsonData.mensagem).to.include(\"inativo\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"usuario_id\": 3,\n  \"exemplar_id\": 3,\n  \"dias_emprestimo\": 14\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos"
+							]
+						},
+						"description": "Tenta criar empréstimo com usuário inativo. Trigger deve bloquear."
+					},
+					"response": []
+				},
+				{
+					"name": "Teste 4: Function Calcular Multa",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code é 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Function retornou valor de multa\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.sucesso).to.eql(true);",
+									"    pm.expect(jsonData).to.have.property('valor_multa');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos/1/multa",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos",
+								"1",
+								"multa"
+							]
+						},
+						"description": "Testa a function fn_calcular_multa_atraso."
+					},
+					"response": []
+				},
+				{
+					"name": "Teste 5: Function Total Multas",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code é 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Function retornou total\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.sucesso).to.eql(true);",
+									"    pm.expect(jsonData).to.have.property('total_multas_abertas');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/usuarios/1/multas/total",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"1",
+								"multas",
+								"total"
+							]
+						},
+						"description": "Testa a function fn_total_multas_abertas_usuario."
+					},
+					"response": []
+				},
+				{
+					"name": "Teste 6: Procedure Registrar Devolução",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code é 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Procedure executada\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.sucesso).to.eql(true);",
+									"    pm.expect(jsonData.mensagem).to.include(\"procedure\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"usuario_responsavel\": \"teste_postman\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos/1/devolucao",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos",
+								"1",
+								"devolucao"
+							]
+						},
+						"description": "Testa a procedure prc_registrar_devolucao."
+					},
+					"response": []
+				},
+				{
+					"name": "Teste 7: Ver Logs de Auditoria",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code é 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Auditoria contém registros\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.sucesso).to.eql(true);",
+									"    pm.expect(jsonData.dados).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/emprestimos/auditoria/logs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"emprestimos",
+								"auditoria",
+								"logs"
+							]
+						},
+						"description": "Verifica se a trigger de auditoria está gerando logs."
+					},
+					"response": []
+				}
+			],
+			"description": "Coleção de testes automatizados para validar todas as funcionalidades da Fase 2."
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}
