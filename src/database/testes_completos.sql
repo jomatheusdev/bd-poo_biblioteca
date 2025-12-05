@@ -11,6 +11,26 @@
 -- =====================================================================
 
 -- ============================================================
+-- 0. PREPARAÇÃO DO AMBIENTE (RESET PARCIAL)
+-- Limpa dados de testes anteriores mantendo a estrutura
+-- ============================================================
+
+-- Limpar dados de testes anteriores
+DELETE FROM auditoria_emprestimo;
+DELETE FROM multa;
+DELETE FROM emprestimo;
+
+-- Garantir que todos os exemplares estejam disponíveis
+UPDATE exemplar SET estado = 'disponivel';
+
+-- Resetar sequences de teste
+ALTER SEQUENCE emprestimo_emprestimo_id_seq RESTART WITH 1;
+ALTER SEQUENCE multa_multa_id_seq RESTART WITH 1;
+ALTER SEQUENCE auditoria_emprestimo_auditoria_id_seq RESTART WITH 1;
+
+SELECT 'AMBIENTE PREPARADO PARA TESTES' AS status;
+
+-- ============================================================
 -- 1. TESTE DA FUNÇÃO: fn_calcular_multa_atraso
 -- Objetivo: Garantir que a função calcula R$ 2,50/dia de atraso
 -- ============================================================
@@ -132,37 +152,75 @@ WHERE exemplar_id = 4;
 -- Objetivo: Registrar devolução e calcular multa automaticamente
 -- ============================================================
 
--- 5.1 Limpar multas do usuário 1 para teste limpo
-DELETE FROM multa WHERE usuario_id = 1;
+-- 5.1 Preparar ambiente: garantir que o exemplar 5 está disponível
+UPDATE exemplar SET estado = 'disponivel' WHERE exemplar_id = 5;
 
--- 5.2 Criar empréstimo em atraso
-INSERT INTO emprestimo (usuario_id, exemplar_id, data_emprestimo, data_prevista_devolucao)
-VALUES (2, 5, '2025-11-01', '2025-11-20')
-RETURNING emprestimo_id;
--- Suponha que retornou emprestimo_id = 5
+-- 5.2 Criar empréstimo em atraso e capturar o ID
+DO 
+$$
+DECLARE
+    v_emprestimo_id BIGINT;
+    v_exemplar_id BIGINT;
+BEGIN
+    -- Buscar um exemplar disponível (preferencialmente o 5, ou qualquer outro)
+    SELECT exemplar_id INTO v_exemplar_id
+    FROM exemplar 
+    WHERE estado = 'disponivel' 
+    LIMIT 1;
+    
+    IF v_exemplar_id IS NULL THEN
+        RAISE EXCEPTION 'Nenhum exemplar disponível para teste';
+    END IF;
+    
+    RAISE NOTICE 'Usando exemplar ID: %', v_exemplar_id;
+    
+    -- Criar empréstimo em atraso
+    INSERT INTO emprestimo (usuario_id, exemplar_id, data_emprestimo, data_prevista_devolucao)
+    VALUES (2, v_exemplar_id, '2025-11-01', '2025-11-20')
+    RETURNING emprestimo_id INTO v_emprestimo_id;
+    
+    RAISE NOTICE 'Empréstimo criado com ID: %', v_emprestimo_id;
+    
+    -- 5.3 Executar a procedure de devolução
+    CALL prc_registrar_devolucao(v_emprestimo_id, 'bibliotecario_joao');
+    -- Esperado:
+    -- - data_devolucao preenchida com CURRENT_DATE
+    -- - Multa criada automaticamente (se houver atraso)
+    -- - Mensagem: "Multa de R$ X registrada para o usuário 2" OU "Devolução realizada sem multas"
+    
+    -- 5.4 Validar resultado
+    RAISE NOTICE '=== VALIDAÇÃO DO EMPRÉSTIMO ===';
+    PERFORM * FROM emprestimo WHERE emprestimo_id = v_emprestimo_id;
+    -- Esperado: data_devolucao preenchida
+    
+    RAISE NOTICE '=== VALIDAÇÃO DA MULTA ===';
+    PERFORM * FROM multa WHERE emprestimo_id = v_emprestimo_id;
+    -- Esperado: Multa registrada (se data atual > 2025-11-20)
+    
+    -- 5.5 Verificar auditoria
+    RAISE NOTICE '=== AUDITORIA ===';
+    PERFORM * FROM auditoria_emprestimo WHERE emprestimo_id = v_emprestimo_id ORDER BY quando DESC;
+    -- Esperado: Registro de DEVOLVER
+    
+    -- 5.6 Testar erro: tentar devolver novamente
+    BEGIN
+        CALL prc_registrar_devolucao(v_emprestimo_id, 'bibliotecario_maria');
+        RAISE NOTICE 'ERRO: Deveria ter falhado ao tentar devolver novamente!';
+    EXCEPTION
+        WHEN OTHERS THEN
+            RAISE NOTICE 'OK: Erro esperado ao tentar devolver novamente: %', SQLERRM;
+    END;
+END $$;
 
--- 5.3 Executar a procedure de devolução
-CALL prc_registrar_devolucao(5, 'bibliotecario_joao');
--- Esperado:
--- - data_devolucao preenchida com CURRENT_DATE
--- - Multa criada automaticamente (se houver atraso)
--- - Mensagem: "Multa de R$ X registrada para o usuário 2" OU "Devolução realizada sem multas"
+-- Consultas para visualizar os resultados
+SELECT 'ÚLTIMO EMPRÉSTIMO CRIADO:' AS info;
+SELECT * FROM emprestimo WHERE usuario_id = 2 ORDER BY emprestimo_id DESC LIMIT 1;
 
--- 5.4 Validar resultado
-SELECT * FROM emprestimo WHERE emprestimo_id = 5;
--- Esperado: data_devolucao preenchida
+SELECT 'MULTAS DO USUÁRIO 2:' AS info;
+SELECT * FROM multa WHERE usuario_id = 2 ORDER BY multa_id DESC;
 
-SELECT * FROM multa WHERE emprestimo_id = 5;
--- Esperado: Multa registrada (se data atual > 2025-11-20)
-
--- 5.5 Verificar auditoria
-SELECT * FROM auditoria_emprestimo WHERE emprestimo_id = 5 ORDER BY quando DESC;
--- Esperado: Registro de DEVOLVER
-
--- 5.6 Testar erro: tentar devolver novamente
-CALL prc_registrar_devolucao(5, 'bibliotecario_maria');
--- Esperado: ERRO
--- "Empréstimo 5 já foi devolvido em [data]."
+SELECT 'AUDITORIA RECENTE:' AS info;
+SELECT * FROM auditoria_emprestimo ORDER BY quando DESC LIMIT 3;
 
 
 -- ============================================================
@@ -261,29 +319,64 @@ DELETE FROM usuario WHERE usuario_id = 2;
 -- ============================================================
 
 -- 8.1 CENÁRIO: Empréstimo completo com devolução no prazo
--- Ativar usuário 3 para este teste
-UPDATE usuario SET ativo = TRUE WHERE usuario_id = 3;
+DO 
+$$
+DECLARE
+    v_emprestimo_id BIGINT;
+    v_exemplar_id BIGINT;
+    v_estado_antes VARCHAR(20);
+    v_estado_depois VARCHAR(20);
+BEGIN
+    -- Ativar usuário 3 para este teste
+    UPDATE usuario SET ativo = TRUE WHERE usuario_id = 3;
+    RAISE NOTICE 'Usuário 3 ativado';
+    
+    -- Buscar um exemplar disponível
+    SELECT exemplar_id INTO v_exemplar_id
+    FROM exemplar 
+    WHERE estado = 'disponivel' 
+    LIMIT 1;
+    
+    IF v_exemplar_id IS NULL THEN
+        RAISE EXCEPTION 'Nenhum exemplar disponível para teste';
+    END IF;
+    
+    RAISE NOTICE 'Usando exemplar ID: %', v_exemplar_id;
+    
+    -- Passo 1: Criar empréstimo
+    INSERT INTO emprestimo (usuario_id, exemplar_id, data_emprestimo, data_prevista_devolucao)
+    VALUES (3, v_exemplar_id, CURRENT_DATE, CURRENT_DATE + 14)
+    RETURNING emprestimo_id INTO v_emprestimo_id;
+    RAISE NOTICE 'Empréstimo criado com ID: %', v_emprestimo_id;
+    
+    -- Passo 2: Verificar que exemplar ficou emprestado
+    SELECT estado INTO v_estado_antes FROM exemplar WHERE exemplar_id = v_exemplar_id;
+    RAISE NOTICE 'Estado do exemplar % após empréstimo: %', v_exemplar_id, v_estado_antes;
+    -- Esperado: 'emprestado'
+    
+    -- Passo 3: Registrar devolução dentro do prazo
+    CALL prc_registrar_devolucao(v_emprestimo_id, 'bibliotecario_teste');
+    RAISE NOTICE 'Devolução registrada';
+    
+    -- Passo 4: Verificar que NÃO houve multa
+    IF EXISTS (SELECT 1 FROM multa WHERE emprestimo_id = v_emprestimo_id) THEN
+        RAISE NOTICE 'ATENÇÃO: Multa criada (não esperado para devolução no prazo)';
+    ELSE
+        RAISE NOTICE 'OK: Nenhuma multa criada (esperado)';
+    END IF;
+    
+    -- Passo 5: Verificar que exemplar voltou a disponível
+    SELECT estado INTO v_estado_depois FROM exemplar WHERE exemplar_id = v_exemplar_id;
+    RAISE NOTICE 'Estado do exemplar % após devolução: %', v_exemplar_id, v_estado_depois;
+    -- Esperado: 'disponivel'
+END $$;
 
--- Passo 1: Criar empréstimo
-INSERT INTO emprestimo (usuario_id, exemplar_id, data_emprestimo, data_prevista_devolucao)
-VALUES (3, 6, CURRENT_DATE, CURRENT_DATE + 14)
-RETURNING emprestimo_id;
--- Suponha que retornou emprestimo_id = 6
+-- Consultas para visualizar os resultados
+SELECT 'EMPRÉSTIMO DO USUÁRIO 3:' AS info;
+SELECT * FROM emprestimo WHERE usuario_id = 3 ORDER BY emprestimo_id DESC LIMIT 1;
 
--- Passo 2: Verificar que exemplar ficou emprestado
-SELECT estado FROM exemplar WHERE exemplar_id = 6;
--- Esperado: 'emprestado'
-
--- Passo 3: Registrar devolução dentro do prazo
-CALL prc_registrar_devolucao(6, 'bibliotecario_teste');
-
--- Passo 4: Verificar que NÃO houve multa
-SELECT * FROM multa WHERE emprestimo_id = 6;
--- Esperado: 0 registros (nenhuma multa)
-
--- Passo 5: Verificar que exemplar voltou a disponível
-SELECT estado FROM exemplar WHERE exemplar_id = 6;
--- Esperado: 'disponivel'
+SELECT 'EXEMPLARES DISPONÍVEIS:' AS info;
+SELECT exemplar_id, codigo_exemplar, estado FROM exemplar WHERE estado = 'disponivel' LIMIT 5;
 
 
 -- ============================================================
